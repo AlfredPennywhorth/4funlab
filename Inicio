@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4FunLab - Sala Interativa</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/tone"></script> <!-- Tone.js CDN -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: "Playful Lab" - Inspired by the provided image, using a vibrant teal (#4fd1c5), soft pink (#f687b3), warm orange (#f6ad55), and bright yellow (#fbd38d) as primary accents. Background is a light, calming shade. -->
+    <!-- Application Structure Plan: The SPA is structured around a single, interactive room, mirroring the user's provided sketch. The main container holds the room background. Interactive elements (furniture, objects) are positioned absolutely within this room as clickable "hotspots." A fixed header displays game progress/stats, and a fixed footer provides core navigation buttons. Clicking on room elements triggers a modal to appear, displaying relevant information about the app's features or content areas. This design prioritizes direct interaction with the visual elements of the game's interface, making it intuitive for users to explore the app's functionalities as if they were playing. -->
+    <!-- Visualization & Content Choices: 
+        - Room Elements: Report Info: Various objects in a room. Goal: Make each object a point of discovery for app features. Viz: HTML `div` elements positioned over a background image. Interaction: Click to open a modal with descriptive text. Justification: Directly translates the visual sketch into interactive zones, providing context for the app's content through a playful interface. Method: HTML/CSS (Tailwind for styling, custom CSS for precise positioning).
+        - Top Bar (Stats): Report Info: Phone, progress bar, stars, coins. Goal: Show game progress and utility access. Viz: HTML `div` with icons and text. Interaction: Hover for tooltips (implied, but not explicitly coded for brevity). Justification: Standard game UI elements for quick information. Method: HTML/Tailwind.
+        - Bottom Navigation: Report Info: Wrench, person, checkmark buttons. Goal: Provide core app navigation/feature access. Viz: HTML `button` elements with Unicode icons. Interaction: Click to open a modal describing the section. Justification: Clear, icon-based navigation for children. Method: HTML/Tailwind.
+        - Modal: Report Info: Detailed explanations for each interactive element. Goal: Provide contextual information on demand. Viz: HTML `div` as an overlay. Interaction: Show/hide on click. Justification: Keeps the main room clean while allowing deep dives into features. Method: HTML/Tailwind/Vanilla JS.
+        - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f0f9ff; /* light blue-50 */
+            overflow: hidden; /* Prevent body scroll, content will scroll within sections if needed */
+        }
+        .room-container {
+            /* URL pública da imagem de fundo do quarto fornecida pelo usuário */
+            background-image: url('https://github.com/AlfredPennywhorth/4funlab/blob/769e6d8854db45e0e25e3c624835dc9ca0b56c00/WhatsApp%20Image%202025-07-24%20at%2019.59.50.jpeg?raw=true'); 
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 8rem); /* Full viewport height minus header/footer */
+            overflow: hidden; /* Ensure elements stay within bounds */
+        }
+        .interactive-object {
+            position: absolute;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 0.875rem; /* text-sm */
+            color: transparent; /* Text hidden by default */
+            background-color: transparent;
+            padding: 0.5rem;
+            box-shadow: none;
+            border: 2px solid transparent; /* Subtle border for hover */
+            z-index: 10; /* Ensure hotspots are above background */
+        }
+        .interactive-object:hover {
+            transform: scale(1.05);
+            background-color: rgba(255, 255, 255, 0.2); /* Very subtle background on hover */
+            border-color: rgba(255, 255, 255, 0.5); /* Subtle border on hover */
+            color: #333; /* Show text on hover */
+        }
+
+        /* Specific object positioning (adjusted based on actual image for precision) */
+        /* All percentages are relative to the room-container's width and height */
+        .object-lamp { top: 23%; left: 13%; width: 10%; height: 18%; } /* Adjusted for the red lamp on the wall */
+        .object-picture { top: 15%; left: 33%; width: 10%; height: 18%; } /* Adjusted for the flower picture */
+        .object-cactus { top: 38%; left: 3%; width: 8%; height: 15%; } /* Adjusted for the cactus */
+        .object-window { top: 10%; right: 9%; width: 20%; height: 35%; } /* Adjusted for the window */
+        .object-sofa-pink { bottom: 20%; left: 20%; width: 28%; height: 25%; } /* Adjusted for the pink sofa */
+        .object-sofa-orange { bottom: 20%; right: 8%; width: 22%; height: 22%; } /* Adjusted for the orange sofa */
+        .object-rug { bottom: 5%; left: 38%; width: 20%; height: 10%; } /* Adjusted for the rug */
+        .object-standing-lamp { top: 30%; right: 30%; width: 5%; height: 28%; } /* Adjusted for the standing lamp */
+        .object-nightstand { bottom: 20%; left: 0%; width: 10%; height: 18%; } /* Adjusted for the nightstand */
+        .object-character { 
+            bottom: 10%; 
+            left: 45%; 
+            width: 10%; 
+            height: 50%; 
+            z-index: 15; /* Ensure character is above furniture */
+        }
+        
+        /* Styling for Genie Mascot in the footer */
+        .genie-mascot-footer {
+            background-image: url('https://github.com/AlfredPennywhorth/4funlab/blob/a8210ddfefee78fec935f765b728b649b46e7abb/Gemini_Generated_Image_gvysv9gvysv9gvys.png?raw=true'); 
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            width: 80px; /* Adjust size as needed for footer */
+            height: 80px; /* Adjust size as needed for footer */
+            transition: transform 0.2s ease-in-out;
+            cursor: pointer;
+            border-radius: 50%; /* Make it round if desired */
+            margin: 0 1rem; /* Spacing from other buttons */
+            display: flex; /* To center text if it was visible */
+            align-items: center;
+            justify-content: center;
+            color: transparent; /* Text hidden by default */
+            border: 2px solid transparent; /* Subtle border for hover */
+        }
+        .genie-mascot-footer:hover {
+            transform: scale(1.1);
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+            color: #fff; /* Show text on hover for footer genie */
+        }
+
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .modal-close-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 1rem auto;
+            display: none; /* Hidden by default */
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .listen-button {
+            background-color: #4fd1c5; /* teal-400 */
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-left: 1rem;
+        }
+        .listen-button:hover {
+            background-color: #38b2ac; /* teal-500 */
+        }
+    </style>
+</head>
+<body class="bg-indigo-50 text-gray-800 flex flex-col min-h-screen">
+
+    <!-- Header (Top Bar) -->
+    <header class="w-full bg-teal-500 p-4 flex justify-between items-center shadow-lg z-20">
+        <div class="flex items-center space-x-2">
+            <span class="text-white text-2xl">📱</span> <!-- Phone icon -->
+            <div class="w-24 h-4 bg-gray-200 rounded-full overflow-hidden">
+                <div class="h-full bg-orange-400 rounded-full w-3/4"></div> <!-- Progress bar -->
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center text-white text-lg">
+                <span class="text-yellow-300 text-2xl">⭐</span>
+                <span>111</span>
+            </div>
+            <div class="flex items-center text-white text-lg">
+                <span class="text-yellow-300 text-2xl">💰</span>
+                <span>14</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Interactive Room Section -->
+    <main class="flex-grow relative">
+        <div class="room-container">
+            <!-- Interactive Objects (Hotspots) -->
+            <div id="lamp" class="interactive-object object-lamp">Lâmpada Mágica</div>
+            <div id="picture" class="interactive-object object-picture">Quadro do Conhecimento</div>
+            <div id="cactus" class="interactive-object object-cactus">Canto da Natureza</div>
+            <div id="window" class="interactive-object object-window">A Janela do Mundo</div>
+            <div id="sofa-pink" class="interactive-object object-sofa-pink">Cantinho da Leitura</div>
+            <div id="sofa-orange" class="interactive-object object-sofa-orange">Espaço de Criação</div>
+            <div id="rug" class="interactive-object object-rug">Tapete dos Jogos</div>
+            <div id="standing-lamp" class="interactive-object object-standing-lamp">Luz do Saber</div>
+            <div id="nightstand" class="interactive-object object-nightstand">Gaveta de Segredos</div>
+            <div id="character" class="interactive-object object-character">Personalizar Gênio</div>
+        </div>
+    </main>
+
+    <!-- Footer (Bottom Navigation) -->
+    <footer class="w-full bg-indigo-700 p-4 flex justify-around items-center shadow-lg z-20">
+        <button id="btn-tools" class="flex flex-col items-center text-white text-sm p-2 rounded-lg hover:bg-indigo-600 transition-colors">
+            <span class="text-3xl">🛠️</span>
+            <span>Ferramentas</span>
+        </button>
+        <!-- Genie Mascot in Footer -->
+        <div id="genie-mascot" class="genie-mascot-footer"></div>
+        <button id="btn-missions" class="flex flex-col items-center text-white text-sm p-2 rounded-lg hover:bg-indigo-600 transition-colors">
+            <span class="text-3xl">✅</span>
+            <span>Missões</span>
+        </button>
+    </footer>
+
+    <!-- Modal for interactive object details -->
+    <div id="infoModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="modalTitle" class="text-2xl font-bold text-indigo-700"></h3>
+                <button id="listenModalText" class="listen-button">Ouvir 🔊</button>
+                <button id="closeModal" class="modal-close-button">✖</button>
+            </div>
+            <p id="modalText" class="text-gray-700"></p>
+            <div id="llmContentArea" class="mt-4 pt-4 border-t border-gray-200">
+                <button id="llmActionButton" class="bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors hidden"></button>
+                <div id="loadingSpinner" class="loading-spinner"></div>
+                <p id="llmResponse" class="mt-4 text-gray-800"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Start Tone.js AudioContext on first user interaction
+            document.documentElement.addEventListener('mousedown', () => {
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+            });
+            document.documentElement.addEventListener('touchstart', () => {
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+            });
+
+            // Simple click sound
+            const clickSynth = new Tone.MembraneSynth().toDestination();
+            function playClickSound() {
+                clickSynth.triggerAttackRelease("C4", "8n");
+            }
+
+            // Simple magic chime sound
+            const magicSynth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "sine" },
+                envelope: {
+                    attack: 0.01,
+                    decay: 0.2,
+                    sustain: 0.1,
+                    release: 0.5
+                }
+            }).toDestination();
+            const magicReverb = new Tone.Reverb(2).toDestination();
+            magicSynth.connect(magicReverb);
+
+            function playMagicSound() {
+                magicSynth.triggerAttackRelease(["C5", "E5", "G5"], "8n");
+            }
+
+            // Speech Synthesis (Text-to-Speech)
+            const synth = window.speechSynthesis;
+            let portugueseVoice = null;
+
+            // Function to find a Portuguese voice
+            function getPortugueseVoice() {
+                if (portugueseVoice) return portugueseVoice;
+                const voices = synth.getVoices();
+                for (let i = 0; i < voices.length; i++) {
+                    if (voices[i].lang === 'pt-BR') {
+                        portugueseVoice = voices[i];
+                        return portugueseVoice;
+                    }
+                }
+                // Fallback to any Portuguese voice if pt-BR is not found
+                for (let i = 0; i < voices.length; i++) {
+                    if (voices[i].lang.startsWith('pt')) {
+                        portugueseVoice = voices[i];
+                        return portugueseVoice;
+                    }
+                }
+                return null; // No Portuguese voice found
+            }
+
+            // Load voices when they are available
+            if (synth.onvoiceschanged !== undefined) {
+                synth.onvoiceschanged = getPortugueseVoice;
+            }
+
+            function speakText(text) {
+                if (synth.speaking) {
+                    synth.cancel(); // Stop current speech if any
+                }
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.voice = getPortugueseVoice(); // Set the Portuguese voice
+                utterance.lang = 'pt-BR'; // Explicitly set language
+                utterance.rate = 1; // Speed of speech
+                utterance.pitch = 1; // Pitch of speech
+                synth.speak(utterance);
+            }
+
+            const interactiveObjects = {
+                'genie-mascot': {
+                    title: 'Seu Amigo Gênio!',
+                    text: 'Olá, aventureiro! Eu sou o Gênio do 4FunLab e estou aqui para te guiar. O que vamos aprender hoje?',
+                    llmFeature: 'genie_greeting',
+                    llmPrompt: 'Crie uma saudação curta e animada do Gênio para uma criança que acabou de clicar nele, incentivando-a a explorar o 4FunLab. No máximo 40 palavras.'
+                },
+                'lamp': {
+                    title: 'Lâmpada Mágica',
+                    text: 'Toque na lâmpada para invocar um fato curioso e iniciar uma nova aventura de aprendizado!',
+                    llmFeature: 'fact',
+                    llmPrompt: 'Gere um fato curioso curto e interessante para crianças de 6 a 11 anos. O fato deve ser sobre ciência, natureza ou história, e ter no máximo 30 palavras.'
+                },
+                'picture': {
+                    title: 'Quadro do Conhecimento',
+                    text: 'Este quadro mágico revela novas curiosidades e fatos interessantes sobre o mundo. Explore e aprenda algo novo todos os dias!',
+                    llmFeature: 'poem',
+                    llmPrompt: 'Gere um poema curto e simples sobre uma flor para crianças de 6 a 11 anos. O poema deve ter no máximo 40 palavras e ser rimado.'
+                },
+                'cactus': {
+                    title: 'Canto da Natureza',
+                    text: 'Descubra os segredos da natureza! Aprenda sobre plantas, animais e o meio ambiente com jogos e histórias interativas.'
+                },
+                'window': {
+                    title: 'A Janela do Mundo',
+                    text: 'Olhe pela janela para explorar diferentes culturas, geografias e eventos históricos. O mundo está ao seu alcance!',
+                    llmFeature: 'place_description',
+                    llmPrompt: 'Descreva um lugar fantástico e imaginário para crianças de 6 a 11 anos, com detalhes visuais e o que se pode fazer lá. No máximo 60 palavras.'
+                },
+                'sofa-pink': {
+                    title: 'Cantinho da Leitura',
+                    text: 'Relaxe neste sofá e mergulhe em histórias cativantes e livros educativos. A leitura é uma viagem sem sair do lugar!',
+                    llmFeature: 'story',
+                    llmPrompt: 'Crie uma história curta e divertida para crianças de 6 a 11 anos. A história deve ter um personagem principal, um pequeno desafio e uma lição simples. No máximo 80 palavras.'
+                },
+                'sofa-orange': {
+                    title: 'Espaço de Criação',
+                    text: 'Aqui você pode soltar a imaginação! Desenhe, construa e crie suas próprias obras de arte e invenções.'
+                },
+                'rug': {
+                    title: 'Tapete dos Jogos',
+                    text: 'O tapete é o portal para jogos divertidos que desafiam sua mente com matemática, lógica e palavras.'
+                },
+                'standing-lamp': {
+                    title: 'Luz do Saber',
+                    text: 'Este abajur ilumina os caminhos do conhecimento, oferecendo dicas e orientações para suas atividades.'
+                },
+                'nightstand': {
+                    title: 'Gaveta de Segredos',
+                    text: 'Explore a gaveta para encontrar itens colecionáveis e recompensas especiais que você ganhou ao longo da jornada.'
+                },
+                'character': {
+                    title: 'Personalizar Gênio',
+                    text: 'Mude o visual do seu avatar e do seu gênio mascote com as moedas que você coletou. Deixe-os com a sua cara!'
+                }
+            };
+
+            const infoModal = document.getElementById('infoModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalText = document.getElementById('modalText');
+            const llmContentArea = document.getElementById('llmContentArea');
+            const llmActionButton = document.getElementById('llmActionButton');
+            const llmResponse = document.getElementById('llmResponse');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const closeModalBtn = document.getElementById('closeModal');
+            const listenModalTextBtn = document.getElementById('listenModalText');
+
+            // Listen button for modal text
+            listenModalTextBtn.addEventListener('click', () => {
+                const textToSpeak = modalTitle.textContent + ". " + modalText.textContent + ". " + llmResponse.textContent;
+                speakText(textToSpeak);
+            });
+
+            async function generateContent(prompt) {
+                llmResponse.textContent = ''; // Clear previous response
+                llmActionButton.classList.add('hidden'); // Hide button during loading
+                llmActionButton.disabled = true; // Disable button during loading
+                loadingSpinner.style.display = 'block'; // Show spinner
+                playMagicSound(); // Play magic sound when generating LLM content
+
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                const payload = { contents: chatHistory };
+                const apiKey = ""; // Leave as-is for Canvas environment
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        llmResponse.textContent = text;
+                    } else {
+                        llmResponse.textContent = 'Ops! Não consegui gerar o conteúdo agora. Tente novamente!';
+                    }
+                } catch (error) {
+                    console.error('Erro ao chamar a API Gemini:', error);
+                    llmResponse.textContent = 'Houve um erro na conexão. Por favor, tente novamente mais tarde.';
+                } finally {
+                    loadingSpinner.style.display = 'none'; // Hide spinner
+                    llmActionButton.classList.remove('hidden'); // Show button again
+                    llmActionButton.disabled = false; // Enable button
+                }
+            }
+
+            // Add event listeners to all interactive objects
+            Object.keys(interactiveObjects).forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('click', () => {
+                        playClickSound(); // Play click sound on any object click
+                        const data = interactiveObjects[id];
+                        modalTitle.textContent = data.title;
+                        modalText.textContent = data.text;
+                        llmResponse.textContent = ''; // Clear previous LLM response
+                        llmActionButton.classList.add('hidden'); // Hide button by default
+                        llmActionButton.disabled = false; // Ensure button is enabled initially
+
+                        if (data.llmFeature) {
+                            llmContentArea.style.display = 'block';
+                            if (data.llmFeature === 'fact') {
+                                llmActionButton.textContent = 'Gerar Fato Curioso ✨';
+                                llmActionButton.onclick = () => generateContent(data.llmPrompt);
+                                llmActionButton.classList.remove('hidden');
+                            } else if (data.llmFeature === 'story') {
+                                llmActionButton.textContent = 'Gerar História ✨';
+                                llmActionButton.onclick = () => generateContent(data.llmPrompt);
+                                llmActionButton.classList.remove('hidden');
+                            } else if (data.llmFeature === 'poem') {
+                                llmActionButton.textContent = 'Gerar Poema da Flor ✨';
+                                llmActionButton.onclick = () => generateContent(data.llmPrompt);
+                                llmActionButton.classList.remove('hidden');
+                            } else if (data.llmFeature === 'place_description') {
+                                llmActionButton.textContent = 'Explorar Lugar Fantástico ✨';
+                                llmActionButton.onclick = () => generateContent(data.llmPrompt);
+                                llmActionButton.classList.remove('hidden');
+                            } else if (data.llmFeature === 'genie_greeting') {
+                                llmActionButton.textContent = 'Pedir Saudação do Gênio ✨';
+                                llmActionButton.onclick = () => generateContent(data.llmPrompt);
+                                llmActionButton.classList.remove('hidden');
+                            }
+                        } else {
+                            llmContentArea.style.display = 'none'; // Hide LLM section if no feature
+                        }
+                        infoModal.classList.remove('hidden');
+                    });
+                }
+            });
+
+            // Add event listeners for bottom navigation buttons
+            document.getElementById('btn-tools').addEventListener('click', () => {
+                playClickSound(); // Play click sound on button click
+                modalTitle.textContent = 'Ferramentas de Criação';
+                modalText.textContent = 'Acesse atividades de construção, desenho e experimentação para desenvolver suas habilidades práticas.';
+                llmContentArea.style.display = 'none';
+                infoModal.classList.remove('hidden');
+            });
+
+            document.getElementById('btn-missions').addEventListener('click', () => {
+                playClickSound(); // Play click sound on button click
+                modalTitle.textContent = 'Missões Diárias';
+                modalText.textContent = 'Complete desafios rápidos e divertidos todos os dias para ganhar recompensas extras e avançar na sua jornada de aprendizado.';
+                llmContentArea.style.display = 'none';
+                infoModal.classList.remove('hidden');
+            });
+
+            // Close modal functionality
+            closeModalBtn.addEventListener('click', () => {
+                playClickSound(); // Play click sound on close
+                synth.cancel(); // Stop speech when modal is closed
+                infoModal.classList.add('hidden');
+            });
+
+            infoModal.addEventListener('click', (event) => {
+                if (event.target === infoModal) {
+                    playClickSound(); // Play click sound on overlay click
+                    synth.cancel(); // Stop speech when modal is closed
+                    infoModal.classList.add('hidden');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
